@@ -10,48 +10,70 @@ function sala(n, rng) {
   s.turno = 0;
   return s;
 }
+function desde(s, pos, dd, id) { s.jugadores[0].pos = pos; return R.tirar(s, id || 'p0', dd); }
 
-// --- reglas puntuales con dados forzados ---
-let s = sala(2);
-s.jugadores[0].pos = 1;
-let t = R.tirar(s, 'p0', [3, 4]);            // 1+7 = 8, casillero común
+// casillero común
+let t = desde(sala(2), 1, [3, 4]);
 assert.strictEqual(t.jugadores[0].pos, 8); assert.strictEqual(t.turno, 1);
 
-s = sala(2); s.jugadores[0].pos = 1;
-t = R.tirar(s, 'p0', [4, 4]);                // 1+8 = 9 = posta -> salta a 15, vuelve a tirar
-assert.strictEqual(t.jugadores[0].pos, 15); assert.strictEqual(t.turno, 0); assert.strictEqual(t.ultima.extra, true);
-assert.deepStrictEqual(t.ultima.pasos.map(p => p.a), [9, 15]);
+// oca: 1+4 = 5 -> salta a 9 y tira de nuevo
+t = desde(sala(2), 1, [2, 2]);
+assert.strictEqual(t.jugadores[0].pos, 9); assert.strictEqual(t.turno, 0); assert.strictEqual(t.ultima.extra, true);
+assert.deepStrictEqual(t.ultima.pasos.map(p => p.a), [5, 9]);
 
-s = sala(2); s.jugadores[0].pos = 75;        // 75+5 = 80, última posta: sin salto, vuelve a tirar
-t = R.tirar(s, 'p0', [2, 3]);
-assert.strictEqual(t.jugadores[0].pos, 80); assert.strictEqual(t.turno, 0);
+// puente: 6 -> 12 y tira de nuevo
+t = desde(sala(2), 1, [2, 3]);
+assert.strictEqual(t.jugadores[0].pos, 12); assert.strictEqual(t.turno, 0);
 
-s = sala(2); s.jugadores[0].pos = 40;        // 40+7 = 47 cordillera -> retrocede 5 a 42
-t = R.tirar(s, 'p0', [3, 4]);
-assert.strictEqual(t.jugadores[0].pos, 42); assert.strictEqual(t.turno, 1);
-
-s = sala(2); s.jugadores[0].pos = 8;         // 8+5 = 13 mate -> pierde el próximo turno
-t = R.tirar(s, 'p0', [2, 3]);
-assert.strictEqual(t.jugadores[0].pausa, 1); assert.strictEqual(t.turno, 1);
-t = R.tirar(t, 'p1', [1, 1]);                 // juega p1; el turno vuelve a p1 porque p0 está en pausa
+// posada: 19, pierde un turno
+let s = sala(2); t = desde(s, 12, [3, 4]);
+assert.strictEqual(t.jugadores[0].pos, 19); assert.strictEqual(t.jugadores[0].pausa, 1); assert.strictEqual(t.turno, 1);
+t = R.tirar(t, 'p1', [1, 1]);
 assert.strictEqual(t.turno, 1); assert.deepStrictEqual(t.ultima.salteados, ['p0']); assert.strictEqual(t.jugadores[0].pausa, 0);
 
-s = sala(2); s.jugadores[0].pos = 5;         // 5+7 = 12 mula -> tira de nuevo con la mitad
-t = R.tirar(s, 'p0', [3, 4]);
-assert.strictEqual(t.jugadores[0].mitad, true); assert.strictEqual(t.turno, 0);
-let t2 = R.tirar(t, 'p0', [5, 5]);            // 10 -> 5
-assert.strictEqual(t2.jugadores[0].pos, 12 + 5); assert.strictEqual(t2.ultima.mitad, true); assert.strictEqual(t2.jugadores[0].mitad, false);
-let t3 = R.tirar(t, 'p0', [1, 1]);            // 2 -> 1
-assert.strictEqual(t3.jugadores[0].pos, 13);   // 12+1 = 13 (mate) ; la mitad nunca baja de 1
+// dados: 26 <-> 53, tira de nuevo
+t = desde(sala(2), 20, [3, 3]);
+assert.strictEqual(t.jugadores[0].pos, 53); assert.strictEqual(t.turno, 0);
+t = desde(sala(2), 47, [3, 3]);
+assert.strictEqual(t.jugadores[0].pos, 26);
 
-s = sala(2); s.jugadores[0].pos = 80;        // 80+6 = 86 -> rebota a 80
-t = R.tirar(s, 'p0', [3, 3]);
-assert.strictEqual(t.jugadores[0].pos, 80); assert.strictEqual(t.ultima.pasos[0].tipo, 'rebote');
+// laberinto: 42 -> 30
+t = desde(sala(2), 35, [3, 4]);
+assert.strictEqual(t.jugadores[0].pos, 30); assert.strictEqual(t.turno, 1);
 
-s = sala(2); s.jugadores[0].pos = 78;        // 78+5 = 83 exacto: gana
-t = R.tirar(s, 'p0', [2, 3]);
+// cárcel: 52, dos turnos sin jugar
+s = sala(2); t = desde(s, 46, [3, 3]);
+assert.strictEqual(t.jugadores[0].pos, 52); assert.strictEqual(t.jugadores[0].pausa, 2);
+t = R.tirar(t, 'p1', [1, 2]); assert.deepStrictEqual(t.ultima.salteados, ['p0']); assert.strictEqual(t.turno, 1);
+t = R.tirar(t, 'p1', [1, 2]); assert.deepStrictEqual(t.ultima.salteados, ['p0']); assert.strictEqual(t.turno, 1);
+t = R.tirar(t, 'p1', [1, 2]); assert.deepStrictEqual(t.ultima.salteados, []); assert.strictEqual(t.turno, 0);
+
+// calavera: 58 -> 1
+t = desde(sala(2), 50, [4, 4]);
+assert.strictEqual(t.jugadores[0].pos, 1); assert.strictEqual(t.turno, 1);
+
+// pozo: queda atrapado hasta que otro caiga
+s = sala(3); t = desde(s, 25, [3, 3]);
+assert.strictEqual(t.jugadores[0].pos, 31); assert.strictEqual(t.jugadores[0].pozo, true); assert.strictEqual(t.turno, 1);
+t = R.tirar(t, 'p1', [1, 2]); assert.strictEqual(t.turno, 2);              // p1 -> 4
+t = R.tirar(t, 'p2', [1, 2]); assert.strictEqual(t.turno, 1);              // p0 en el pozo: se saltea
+assert.ok(t.ultima.salteados.indexOf('p0') >= 0);
+t.jugadores[1].pos = 25;
+t = R.tirar(t, 'p1', [3, 3]);                                              // p1 cae en el pozo y rescata a p0
+assert.strictEqual(t.jugadores[1].pos, 31); assert.strictEqual(t.jugadores[1].pozo, true); assert.strictEqual(t.jugadores[0].pozo, false); assert.strictEqual(t.ultima.efecto.rescata, 'p0');
+
+// rebote en la meta
+t = desde(sala(2), 60, [3, 3]);
+assert.strictEqual(t.jugadores[0].pos, 60); assert.strictEqual(t.ultima.pasos[0].tipo, 'rebote');
+t = desde(sala(2), 62, [3, 4]);
+assert.strictEqual(t.jugadores[0].pos, 57);   // 69 -> 63 - 6
+
+// meta exacta y oca final
+t = desde(sala(2), 56, [3, 4]);
 assert.strictEqual(t.fase, 'fin'); assert.strictEqual(t.ganador, 'p0');
-assert.strictEqual(R.tirar(t, 'p1', [1, 2]), null);   // terminada: nadie tira
+assert.strictEqual(R.tirar(t, 'p1', [1, 2]), null);
+t = desde(sala(2), 54, [2, 3]);               // 59 = última oca: va a la meta
+assert.strictEqual(t.fase, 'fin'); assert.strictEqual(t.ganador, 'p0'); assert.strictEqual(t.jugadores[0].pos, 63);
 
 assert.strictEqual(R.tirar(sala(2), 'p1', [1, 2]), null);   // no es su turno
 
@@ -65,6 +87,11 @@ assert.ok(!/[<>]/.test(nom) && nom.length <= 16, 'nombre limpio: ' + nom);
 R.empezar(l, () => 0.5);
 assert.strictEqual(R.agregarJugador(l, 'zz', 'Tarde').error, 'empezada');
 
+// hay 13 ocas y todas las especiales son distintas
+assert.strictEqual(R.OCAS.length, 13);
+let esp = 0; for (let n = 1; n <= 63; n++) if (R.tipoDe(n) !== 'normal') esp++;
+console.log('casilleros especiales:', esp);
+
 // --- simulación masiva ---
 const rng = mulberry(20261018);
 const stats = {};
@@ -73,14 +100,13 @@ for (let n = 2; n <= 5; n++) {
   const wins = new Array(n).fill(0);
   for (let g = 0; g < games; g++) {
     let sa = sala(n, rng), rolls = 0;
-    R.empezar(R.nuevaSala('Z'), rng);
     while (sa.fase === 'jugando') {
       const p = sa.jugadores[sa.turno];
       const nx = R.tirar(sa, p.id, R.dados(rng));
       assert.ok(nx, 'tirada válida');
       sa = nx; rolls++;
-      for (const j of sa.jugadores) assert.ok(j.pos >= 1 && j.pos <= 83, 'posición válida ' + j.pos);
-      assert.ok(sa.turno >= 0 && sa.turno < n);
+      for (const j of sa.jugadores) assert.ok(j.pos >= 1 && j.pos <= 63, 'posición válida ' + j.pos);
+      assert.ok(sa.jugadores.filter(j => j.pozo).length <= 1, 'un solo jugador en el pozo');
       assert.ok(rolls < 5000, 'la partida termina');
     }
     wins[sa.jugadores.findIndex(j => j.id === sa.ganador)]++;

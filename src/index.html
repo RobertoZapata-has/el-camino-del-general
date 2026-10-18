@@ -15,7 +15,7 @@
 <section id="inicio" class="pantalla">
   <div class="hero" id="hero">
     <div class="hero-titulo">
-      <p class="sobre">Juego de la Oca sanmartiniana</p>
+      <p class="sobre">Juego de la Oca</p>
       <h1>El camino del General</h1>
     </div>
   </div>
@@ -47,7 +47,7 @@
         <button class="boton secundario" data-n="5">5</button>
       </div>
     </div>
-    <p class="nota">83 sellos del Pasaporte Nacional Sanmartiniano. Gana quien llega primero al Museo del Cabildo. De 2 a 5 jugadores.</p>
+    <p class="nota">El clásico juego de la oca, de 2 a 5 jugadores. Gana quien llega primero a la casilla 63.</p>
   </div>
 </section>
 
@@ -76,31 +76,27 @@
 
 <section id="juego" class="pantalla" hidden>
   <div id="escenario">
-    <img class="fondo" id="fondo-a" alt="" draggable="false">
-    <img class="fondo" id="fondo-b" alt="" draggable="false" style="opacity:0">
+    <img id="fondo" alt="" draggable="false">
     <svg id="camino" viewBox="0 0 1280 720"></svg>
     <div id="casilleros"></div>
     <div id="fichas"></div>
 
-    <div class="chip" id="hud-escena"><small id="esc-prov"></small><b id="esc-nombre"></b></div>
-    <div id="hud-botones">
-      <button class="mini" id="btn-pantalla" aria-label="Pantalla completa">⛶</button>
-      <button class="mini" id="btn-menu" aria-label="Salir">Salir</button>
+    <div id="izq">
+      <div id="jugadores"></div>
+      <div id="botones">
+        <button class="mini" id="btn-pantalla" aria-label="Pantalla completa">⛶</button>
+        <button class="mini" id="btn-menu">Salir</button>
+      </div>
     </div>
-    <div class="chip" id="hud-turno"><b id="turno-nombre"></b><span id="turno-sub"></span></div>
-    <div class="chip" id="jugadores"></div>
 
-    <div id="barra">
+    <div id="der">
+      <div class="chip" id="hud-turno"><b id="turno-nombre"></b><span id="turno-sub"></span></div>
       <div class="dados"><div class="dado" id="d0"></div><div class="dado" id="d1"></div></div>
       <button id="tirar">Tirar dados</button>
-      <div id="tira" aria-label="Avance por los 83 sellos"><span class="rot">Los 83 sellos</span><div class="marcas" id="marcas"></div><div class="dots" id="dots"></div></div>
+      <div class="chip" id="jugada"><div id="jugada-icono"></div><b id="jugada-titulo"></b><span id="jugada-texto"></span></div>
     </div>
 
-    <div id="tarjeta" class="fuera"><div class="cinta" id="t-cinta"></div><div class="cuerpo" id="t-cuerpo"></div><img class="sello" id="t-sello" alt=""></div>
-    <div class="chip fuera" id="viaje"></div>
-    <div id="aviso" class="fuera"></div>
     <div id="conexion" hidden>Reconectando…</div>
-
     <div id="fin" hidden><div class="caja" id="fin-caja"></div></div>
   </div>
 </section>

@@ -1,27 +1,34 @@
-/* Reglas de El camino del General. Lógica pura, sin pantalla ni red.
-   Sirve igual en el navegador (global Reglas) y en Node (para las pruebas). */
+/* Reglas de El camino del General: Juego de la Oca clásico de 63 casillas.
+   Lógica pura, sin pantalla ni red. Sirve en el navegador (global Reglas) y en Node (pruebas). */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.Reglas = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  var META = 83;
+  var META = 63;
   var MAX_JUGADORES = 5;
-  var RETROCESO = 5;
-  // Casilleros especiales, elegidos por el nombre real del sitio.
-  var POSTAS = [9, 15, 19, 21, 22, 23, 24, 39, 45, 66, 80];   // sitios que son postas
-  var CORDILLERA = [47, 51, 57, 74];                          // pasos de la cordillera
-  var MATE = [13, 18, 75, 76];                                // árboles históricos: pausa
-  var MULA = [12, 37, 49, 64];                                // troperos y estancias
+  var OCAS = [5, 9, 14, 18, 23, 27, 32, 36, 41, 45, 50, 54, 59];
+  var PUENTE = 6, PUENTE_A = 12;
+  var POSADA = 19;
+  var POZO = 31;
+  var DADOS = [26, 53];
+  var LABERINTO = 42, LABERINTO_A = 30;
+  var CARCEL = 52;
+  var CALAVERA = 58;
 
   function tipoDe(n) {
     if (n === META) return 'meta';
-    if (POSTAS.indexOf(n) >= 0) return 'posta';
-    if (CORDILLERA.indexOf(n) >= 0) return 'cordillera';
-    if (MATE.indexOf(n) >= 0) return 'mate';
-    if (MULA.indexOf(n) >= 0) return 'mula';
-    return 'sello';
+    if (n === 1) return 'inicio';
+    if (OCAS.indexOf(n) >= 0) return 'oca';
+    if (n === PUENTE) return 'puente';
+    if (n === POSADA) return 'posada';
+    if (n === POZO) return 'pozo';
+    if (DADOS.indexOf(n) >= 0) return 'dados';
+    if (n === LABERINTO) return 'laberinto';
+    if (n === CARCEL) return 'carcel';
+    if (n === CALAVERA) return 'calavera';
+    return 'normal';
   }
 
   function clonar(o) { return JSON.parse(JSON.stringify(o)); }
@@ -36,7 +43,7 @@
   }
 
   function nuevaSala(codigo) {
-    return { v: 1, codigo: codigo, fase: 'sala', seq: 0, partida: 0, jugada: 0, turno: 0, ganador: null, ultima: null, jugadores: [] };
+    return { v: 2, codigo: codigo, fase: 'sala', seq: 0, partida: 0, jugada: 0, turno: 0, ganador: null, ultima: null, jugadores: [] };
   }
 
   function jugadorPorId(sala, id) {
@@ -53,7 +60,6 @@
     return -1;
   }
 
-  // Agrega a alguien a la sala, o lo reconecta si ya estaba (mismo id).
   function agregarJugador(sala, id, nombre) {
     var ya = jugadorPorId(sala, id);
     if (ya) {
@@ -65,7 +71,7 @@
     if (sala.fase !== 'sala') return { ok: false, error: 'empezada' };
     var slot = slotLibre(sala);
     if (slot < 0) return { ok: false, error: 'llena' };
-    var j = { id: id, nombre: limpiarNombre(nombre) || ('Jugador ' + (slot + 1)), slot: slot, pos: 1, pausa: 0, mitad: false, conectado: true };
+    var j = { id: id, nombre: limpiarNombre(nombre) || ('Jugador ' + (slot + 1)), slot: slot, pos: 1, pausa: 0, pozo: false, conectado: true };
     sala.jugadores.push(j);
     sala.jugadores.sort(function (a, b) { return a.slot - b.slot; });
     sala.seq++;
@@ -82,7 +88,7 @@
 
   function empezar(sala, rng) {
     if (sala.fase === 'jugando' || sala.jugadores.length < 2) return false;
-    sala.jugadores.forEach(function (j) { j.pos = 1; j.pausa = 0; j.mitad = false; });
+    sala.jugadores.forEach(function (j) { j.pos = 1; j.pausa = 0; j.pozo = false; });
     sala.fase = 'jugando';
     sala.ganador = null;
     sala.ultima = null;
@@ -93,16 +99,22 @@
     return true;
   }
 
-  // Busca quién juega después de la posición idx. Las pausas del mate se cobran acá.
+  // Quién juega después de la posición idx. Las pausas se cobran acá; quien está en el pozo no juega.
   function siguiente(sala, idx) {
     var n = sala.jugadores.length, salteados = [];
-    for (var k = 0; k < n * 2 + 2; k++) {
+    for (var k = 0; k < n * 3 + 2; k++) {
       idx = (idx + 1) % n;
       var j = sala.jugadores[idx];
+      if (j.pozo) { salteados.push(j.id); continue; }
       if (j.pausa > 0) { j.pausa--; salteados.push(j.id); continue; }
       return { idx: idx, salteados: salteados };
     }
     return { idx: idx, salteados: salteados };
+  }
+
+  function siguienteOca(n) {
+    for (var i = 0; i < OCAS.length; i++) if (OCAS[i] > n) return OCAS[i];
+    return META;
   }
 
   // El jugador de turno tira. Devuelve la sala nueva o null si no corresponde.
@@ -111,32 +123,42 @@
     var s = clonar(sala);
     var p = s.jugadores[s.turno];
     if (!p || p.id !== id) return null;
+    if (p.pozo) p.pozo = false;   // solo pasa si no queda nadie más que lo rescate
 
     var desde = p.pos;
     var total = dd[0] + dd[1];
-    var mitad = false;
-    if (p.mitad) { total = Math.max(1, Math.floor(total / 2)); mitad = true; p.mitad = false; }
-
     var destino = p.pos + total, rebote = false;
     if (destino > META) { destino = META - (destino - META); rebote = true; }
     var pasos = [{ a: destino, tipo: rebote ? 'rebote' : 'camina' }];
     p.pos = destino;
 
-    var extra = false, efecto = { tipo: tipoDe(destino), casillero: destino };
-    if (efecto.tipo === 'meta') {
+    var tipo = tipoDe(destino), extra = false, rescata = null;
+    var efecto = { tipo: tipo, casillero: destino };
+
+    if (tipo === 'meta') {
       s.fase = 'fin'; s.ganador = p.id;
-    } else if (efecto.tipo === 'posta') {
-      var prox = null;
-      for (var i = 0; i < POSTAS.length; i++) if (POSTAS[i] > destino) { prox = POSTAS[i]; break; }
-      if (prox) { pasos.push({ a: prox, tipo: 'posta' }); p.pos = prox; }
-      efecto.a = prox; extra = true;
-    } else if (efecto.tipo === 'cordillera') {
-      var atras = Math.max(1, destino - RETROCESO);
-      pasos.push({ a: atras, tipo: 'retroceso' }); p.pos = atras; efecto.a = atras;
-    } else if (efecto.tipo === 'mate') {
+    } else if (tipo === 'oca') {
+      var prox = siguienteOca(destino);
+      pasos.push({ a: prox, tipo: 'oca' }); p.pos = prox; efecto.a = prox;
+      if (prox === META) { s.fase = 'fin'; s.ganador = p.id; }
+      else extra = true;
+    } else if (tipo === 'puente') {
+      pasos.push({ a: PUENTE_A, tipo: 'puente' }); p.pos = PUENTE_A; efecto.a = PUENTE_A; extra = true;
+    } else if (tipo === 'dados') {
+      var otro = destino === DADOS[0] ? DADOS[1] : DADOS[0];
+      pasos.push({ a: otro, tipo: 'dados' }); p.pos = otro; efecto.a = otro; extra = true;
+    } else if (tipo === 'laberinto') {
+      pasos.push({ a: LABERINTO_A, tipo: 'laberinto' }); p.pos = LABERINTO_A; efecto.a = LABERINTO_A;
+    } else if (tipo === 'calavera') {
+      pasos.push({ a: 1, tipo: 'calavera' }); p.pos = 1; efecto.a = 1;
+    } else if (tipo === 'posada') {
       p.pausa = 1;
-    } else if (efecto.tipo === 'mula') {
-      p.mitad = true; extra = true;
+    } else if (tipo === 'carcel') {
+      p.pausa = 2;
+    } else if (tipo === 'pozo') {
+      s.jugadores.forEach(function (q) { if (q.id !== p.id && q.pozo) { q.pozo = false; rescata = q.id; } });
+      p.pozo = true;
+      efecto.rescata = rescata;
     }
 
     var salteados = [];
@@ -144,7 +166,7 @@
       var sig = siguiente(s, s.turno);
       s.turno = sig.idx; salteados = sig.salteados;
     }
-    s.ultima = { id: p.id, dados: dd, mitad: mitad, desde: desde, pasos: pasos, efecto: efecto, extra: extra, salteados: salteados };
+    s.ultima = { id: p.id, dados: dd, desde: desde, pasos: pasos, efecto: efecto, extra: extra, salteados: salteados };
     s.jugada++;
     s.seq++;
     return s;
@@ -170,8 +192,8 @@
   }
 
   return {
-    META: META, MAX_JUGADORES: MAX_JUGADORES, RETROCESO: RETROCESO,
-    POSTAS: POSTAS, CORDILLERA: CORDILLERA, MATE: MATE, MULA: MULA,
+    META: META, MAX_JUGADORES: MAX_JUGADORES, OCAS: OCAS, PUENTE: PUENTE, POSADA: POSADA, POZO: POZO,
+    DADOS: DADOS, LABERINTO: LABERINTO, CARCEL: CARCEL, CALAVERA: CALAVERA,
     tipoDe: tipoDe, dados: dados, nuevaSala: nuevaSala, agregarJugador: agregarJugador,
     quitarJugador: quitarJugador, jugadorPorId: jugadorPorId, empezar: empezar, tirar: tirar,
     pasarTurno: pasarTurno, reiniciar: reiniciar, limpiarNombre: limpiarNombre, clonar: clonar

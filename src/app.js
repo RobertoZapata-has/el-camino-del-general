@@ -12,8 +12,6 @@
   var TURN_EXTRA = [];
   var ICE = [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:global.stun.twilio.com:3478' }].concat(TURN_EXTRA);
 
-  var NOMBRE_TIPO = { sello: 'Sello', posta: 'Posta', cordillera: 'Cordillera', mate: 'Mate', mula: 'Mula', meta: 'Meta' };
-
   /* ---------- utilidades ---------- */
   function $(id) { return document.getElementById(id); }
   function h(tag, props) {
@@ -31,14 +29,28 @@
   function aleatorio(n) { var s = ''; for (var i = 0; i < n; i++) s += ALFABETO[Math.floor(Math.random() * ALFABETO.length)]; return s; }
   function limpiarCodigo(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5); }
 
-  var sellos = D.sellos, escenas = {}, posN = {};
-  D.escenas.forEach(function (e) { escenas[e.id] = e; });
-  Object.keys(D.layout).forEach(function (id) { D.layout[id].sq.forEach(function (q) { posN[q[0]] = { esc: id, x: q[1], y: q[2] }; }); });
-  function escenaDe(n) { return sellos[n - 1].escena; }
-  function nombreDe(n) { return sellos[n - 1].nombre; }
+  var POS = D.pos, CELDA = D.celda;
 
   var pid = Q.get('pid') || ls('ecdg_pid');
   if (!pid) { pid = 'p' + aleatorio(10); ls('ecdg_pid', pid); }
+
+  /* ---------- íconos de los casilleros especiales (provisorios, dibujados en código) ---------- */
+  var N = '#1F2E4D';
+  function svg(c) { return '<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="' + N + '" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' + c + '</svg>'; }
+  var ICONOS = {
+    oca: svg('<path d="M9 33c0-7 6-11 13-11h6c3 0 4-2 4-5v-4c0-3 2-5 5-5 2 0 4 1 4 3v3c0 6-3 9-6 10 3 2 4 5 3 8H15c-4 0-6-2-6-5z" fill="#FFFDF5"/><path d="M39 9l7 3-7 2z" fill="#E8932E"/><circle cx="36.5" cy="9" r="1.3" fill="' + N + '" stroke="none"/><path d="M20 42v4M28 42v4M17 46h6M25 46h6" stroke="#E8932E"/>'),
+    puente: svg('<path d="M3 30h42" /><path d="M6 30c0-10 8-15 18-15s18 5 18 15" fill="#F4E8CE"/><path d="M12 30v-9M24 30V15M36 30v-9"/><path d="M4 38c4-3 6 3 10 0s6 3 10 0 6 3 10 0 6 3 10 0" stroke="#4B8FB5"/>'),
+    posada: svg('<path d="M5 24L24 8l19 16z" fill="#C5543F"/><rect x="9" y="24" width="30" height="18" fill="#F4E8CE"/><rect x="20" y="30" width="9" height="12" fill="' + N + '"/><rect x="12" y="28" width="6" height="6" fill="#8DB7C9"/><rect x="31" y="28" width="6" height="6" fill="#8DB7C9"/>'),
+    pozo: svg('<path d="M10 18v-7l14-6 14 6v7" /><path d="M13 11h22"/><path d="M10 28v9c0 4 6 7 14 7s14-3 14-7v-9" fill="#BDB7A8"/><ellipse cx="24" cy="28" rx="14" ry="6" fill="#3E6E8E"/><path d="M14 20v8M34 20v8"/>'),
+    dados: svg('<rect x="4" y="12" width="22" height="22" rx="4" fill="#FFFDF5" transform="rotate(-10 15 23)"/><rect x="24" y="18" width="20" height="20" rx="4" fill="#FFFDF5" transform="rotate(8 34 28)"/><g fill="' + N + '" stroke="none"><circle cx="10" cy="19" r="2"/><circle cx="20" cy="27" r="2"/><circle cx="15" cy="23" r="2"/><circle cx="30" cy="24" r="1.8"/><circle cx="38" cy="32" r="1.8"/><circle cx="34" cy="28" r="1.8"/></g>'),
+    laberinto: svg('<path d="M24 24h3v-3h-6v6h9v-9H18v12h15V15H12v18h27V9H6v30h36" stroke-width="2.6"/>'),
+    carcel: svg('<rect x="6" y="8" width="36" height="32" rx="3" fill="#D3D6DC"/><path d="M14 8v32M22 8v32M30 8v32M38 8v32" stroke-width="3"/><path d="M6 16h36M6 32h36"/>'),
+    calavera: svg('<path d="M10 22c0-9 6-15 14-15s14 6 14 15c0 5-2 8-5 10v6H15v-6c-3-2-5-5-5-10z" fill="#FFFDF5"/><circle cx="18" cy="23" r="4" fill="' + N + '"/><circle cx="30" cy="23" r="4" fill="' + N + '"/><path d="M24 28l-2 4h4z" fill="' + N + '"/><path d="M19 38v-4M24 38v-4M29 38v-4"/>'),
+    meta: svg('<circle cx="24" cy="24" r="9" fill="#F0B52C"/><g stroke="#C98A12"><path d="M24 4v7M24 37v7M4 24h7M37 24h7M10 10l5 5M33 33l5 5M38 10l-5 5M15 33l-5 5"/></g><circle cx="21.5" cy="23" r="1.2" fill="' + N + '" stroke="none"/><circle cx="26.5" cy="23" r="1.2" fill="' + N + '" stroke="none"/><path d="M21 27c2 2 4 2 6 0"/>'),
+    inicio: svg('<path d="M12 6v38"/><path d="M12 8h26l-6 8 6 8H12z" fill="#7C9A6A"/>'),
+    normal: svg('<circle cx="24" cy="24" r="6" fill="#F4E8CE"/>')
+  };
+  var TINTES = { oca: '#F0B52C', puente: '#8DB7C9', posada: '#D98B5B', pozo: '#5A7DA8', dados: '#8FB77A', laberinto: '#A88BC0', carcel: '#8A8F9A', calavera: '#C9534A', meta: '#F0B52C', inicio: '#8FB77A' };
 
   /* ---------- estado de la app ---------- */
   var app = {
@@ -50,12 +62,11 @@
     soloInvitado: !!limpiarCodigo(Q.get('sala')),
     visible: null,       // estado que se está mostrando
     ultimoEnc: null,     // último estado encolado
-    escena: null,
     pendiente: false,
     cerrando: false
   };
-  var cola = Promise.resolve(), ocupado = 0;
-  var fichasEl = {}, tokenSlots = [];
+  var cola = Promise.resolve(), ocupado = 0, generacion = 0;
+  var fichasEl = {};
 
   /* ---------- pantallas ---------- */
   function mostrar(id) {
@@ -87,7 +98,7 @@
       $('codigo').value = cod; $('codigo').readOnly = true;
     }
     var hs = lsJson('ecdg_host'), gs = lsJson('ecdg_inv');
-    var puede = !app.soloInvitado && ((hs && hs.sala && hs.sala.fase !== 'fin') || gs);
+    var puede = !app.soloInvitado && ((hs && hs.sala && hs.sala.fase !== 'fin' && hs.sala.v === 2) || gs);
     if (app.soloInvitado && gs && gs.codigo === cod) puede = true;
     $('bloque-reanudar').hidden = !puede;
     mostrar('inicio');
@@ -102,7 +113,7 @@
   $('codigo').addEventListener('input', function () { this.value = limpiarCodigo(this.value); });
   $('btn-reanudar').onclick = function () {
     var gs = lsJson('ecdg_inv'), hs = lsJson('ecdg_host');
-    if (!app.soloInvitado && hs && hs.sala && hs.sala.fase !== 'fin') reanudarAnfitrion(hs);
+    if (!app.soloInvitado && hs && hs.sala && hs.sala.fase !== 'fin' && hs.sala.v === 2) reanudarAnfitrion(hs);
     else if (gs) { $('nombre').value = gs.nombre || $('nombre').value; unirse(gs.codigo); }
   };
   Array.prototype.forEach.call(document.querySelectorAll('#local-n button'), function (b) {
@@ -165,7 +176,6 @@
           app.conns[id] = conn;
           if (vieja && vieja !== conn) { try { vieja.close(); } catch (e) { } }
           app.anf.recibir(id, m);
-          // Si no pudo entrar (llena o empezada), el anfitrión ya le mandó el error.
         } else if (id) {
           app.anf.recibir(id, m);
         }
@@ -248,9 +258,7 @@
     peer.on('disconnected', function () { /* el canal de datos sigue vivo sin el broker */ });
   }
   function fallo(texto) {
-    var estabaJugando = !!app.visible;
     reiniciarApp();
-    if (app.soloInvitado && estabaJugando) { /* se queda en la invitación */ }
     prepararInicio(); msgInicio(texto);
   }
 
@@ -260,15 +268,14 @@
     if (app.anf && app.anfitrion) { try { app.anf.cerrar(); } catch (e) { } }
     if (app.peer) { try { app.peer.destroy(); } catch (e) { } }
     app.peer = null; app.conns = {}; app.conexionG = null; app.anf = null;
-    app.visible = null; app.ultimoEnc = null; app.escena = null; app.codigo = null;
+    app.visible = null; app.ultimoEnc = null; app.codigo = null;
     app.modo = null; app.anfitrion = false; app.pendiente = false;
     cola = Promise.resolve(); ocupado = 0; ++generacion;
     $('conexion').hidden = true; $('fin').hidden = true;
-    $('tarjeta').classList.add('fuera');
     $('fichas').innerHTML = ''; fichasEl = {};
+    quitarPulsos();
     app.cerrando = false;
   }
-  var generacion = 0;
 
   function salirDelJuego() {
     var invitado = !app.anfitrion && app.modo === 'red';
@@ -281,7 +288,7 @@
   /* ---------- sala (lobby) ---------- */
   function linkSala() { return location.origin + location.pathname + '?sala=' + app.codigo; }
   $('btn-wsp').onclick = function () {
-    var t = 'Jugá conmigo a El camino del General (Juego de la Oca sanmartiniana). Sala ' + app.codigo + ': ' + linkSala();
+    var t = 'Jugá conmigo a El camino del General (juego de la oca). Sala ' + app.codigo + ': ' + linkSala();
     window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank');
   };
   $('btn-copiar').onclick = function () {
@@ -301,10 +308,10 @@
       var el = h('div', { cls: 'slot' + (j ? ' lleno' : '') });
       if (j) {
         el.appendChild(h('img', { src: IMG['ficha_' + s], alt: '' }));
-        var b = h('div', null, h('b', { text: j.nombre + (j.id === pid && app.modo === 'red' ? ' (vos)' : '') }));
-        if (j.id === sala.jugadores[0].id && false) { }
+        var nom = h('b', { text: j.nombre + (j.id === pid && app.modo === 'red' ? ' (vos)' : '') });
+        var b = h('div', null, nom);
         el.appendChild(b);
-        if (app.anf && j.id === app.anf.idAnfitrion || (!app.anfitrion && j.slot === 0 && false)) b.firstChild.appendChild(h('span', { cls: 'etiqueta', text: 'Anfitrión' }));
+        if (app.anf && j.id === app.anf.idAnfitrion) nom.appendChild(h('span', { cls: 'etiqueta', text: 'Anfitrión' }));
         if (!j.conectado) b.appendChild(h('small', { text: 'Sin señal' }));
       } else {
         el.appendChild(h('div', { cls: 'vacio' })); el.appendChild(h('span', { text: 'Esperando jugador…' }));
@@ -352,71 +359,59 @@
   }
 
   /* ---------- tablero ---------- */
-  var fondoActivo = 'fondo-a';
-  function tipoClase(n) { return R.tipoDe(n); }
-
-  function construirEscena(id) {
-    var lay = D.layout[id], cas = $('casilleros'), svg = $('camino');
-    cas.innerHTML = '';
-    svg.innerHTML = '';
-    var pts = lay.line.map(function (p) { return p[0] + ',' + p[1]; }).join(' ');
-    var NS = 'http://www.w3.org/2000/svg';
-    [['#1F2E4D', 16, 1], ['#F4E8CE', 8, 1]].forEach(function (c) {
+  var tableroListo = false;
+  var casEl = {};
+  function construirTablero() {
+    if (tableroListo) return;
+    tableroListo = true;
+    $('fondo').src = IMG.tablero;
+    var cas = $('casilleros'), svgEl = $('camino'), NS = 'http://www.w3.org/2000/svg';
+    // camino de tierra que une las 63 casillas en orden
+    var pts = [], i;
+    for (i = 1; i <= R.META; i++) pts.push(POS[i][0] + ',' + POS[i][1]);
+    [['#8A6A3A', 28, .5, null], ['#D8B97E', 22, .8, null], ['#8A6A3A', 3, .55, '2 11']].forEach(function (c) {
       var pl = document.createElementNS(NS, 'polyline');
-      pl.setAttribute('points', pts); pl.setAttribute('fill', 'none'); pl.setAttribute('stroke', c[0]);
-      pl.setAttribute('stroke-width', c[1]); pl.setAttribute('stroke-linecap', 'round'); pl.setAttribute('stroke-linejoin', 'round');
-      if (c[0] === '#F4E8CE') pl.setAttribute('stroke-dasharray', '2 14');
-      svg.appendChild(pl);
+      pl.setAttribute('points', pts.join(' ')); pl.setAttribute('fill', 'none'); pl.setAttribute('stroke', c[0]);
+      pl.setAttribute('stroke-width', c[1]); pl.setAttribute('stroke-opacity', c[2]);
+      pl.setAttribute('stroke-linecap', 'round'); pl.setAttribute('stroke-linejoin', 'round');
+      if (c[3]) pl.setAttribute('stroke-dasharray', c[3]);
+      svgEl.appendChild(pl);
     });
-    lay.sq.forEach(function (q) {
-      var n = q[0], t = tipoClase(n);
-      var el = h('div', { cls: 'sq tipo-' + t, 'data-n': n, style: 'left:' + q[1] + 'px;top:' + q[2] + 'px' });
-      if (t === 'sello') el.appendChild(document.createTextNode(String(n)));
-      else { el.appendChild(h('img', { src: IMG['icono_' + t], alt: '' })); el.appendChild(h('span', { cls: 'num', text: String(n) })); }
-      el.onclick = function () { aviso(n + '. ' + nombreDe(n), 2600); };
-      cas.appendChild(el);
-    });
-    var e = escenas[id];
-    var cant = lay.sq.length;
-    $('esc-prov').textContent = cant + ' sellos en esta región';
-    $('esc-nombre').textContent = e.nombre;
-  }
-
-  async function cambiarFondo(id) {
-    var viejo = $(fondoActivo), nuevoId = fondoActivo === 'fondo-a' ? 'fondo-b' : 'fondo-a', nuevo = $(nuevoId);
-    nuevo.src = IMG['escena_' + id];
-    try { await nuevo.decode(); } catch (e) { }
-    nuevo.style.opacity = '1'; viejo.style.opacity = '0';
-    fondoActivo = nuevoId;
-  }
-
-  // Muestra la región indicada. Con viaje, hace la transición con cartel.
-  async function irAEscena(id, viaje, texto) {
-    if (app.escena === id) return;
-    var primera = !app.escena;
-    app.escena = id;
-    if (primera || !viaje) {
-      $(fondoActivo).src = IMG['escena_' + id];
-      construirEscena(id); acomodarFichas(); return;
+    // flechitas en cada tramo, en el hueco entre casillas
+    for (i = 1; i < R.META; i++) {
+      var a = POS[i], b = POS[i + 1];
+      var mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI;
+      var tr = document.createElementNS(NS, 'path');
+      tr.setAttribute('d', 'M-6 -7L7 0L-6 7Z');
+      tr.setAttribute('fill', '#1F2E4D'); tr.setAttribute('stroke', '#F4E8CE'); tr.setAttribute('stroke-width', '2');
+      tr.setAttribute('transform', 'translate(' + mx + ' ' + my + ') rotate(' + ang + ')');
+      svgEl.appendChild(tr);
     }
-    var v = $('viaje');
-    v.textContent = texto || ('Viajamos a ' + escenas[id].nombre);
-    v.style.background = escenas[id].color; v.style.border = '4px solid #1F2E4D';
-    v.classList.remove('fuera');
-    $('casilleros').classList.add('oculto'); $('fichas').classList.add('oculto'); $('camino').classList.add('oculto');
-    await espera(350);
-    await cambiarFondo(id);
-    construirEscena(id); acomodarFichas();
-    await espera(450);
-    $('casilleros').classList.remove('oculto'); $('fichas').classList.remove('oculto'); $('camino').classList.remove('oculto');
-    await espera(250);
-    v.classList.add('fuera');
+    // casilleros: tinte + ícono; los números van arriba de las fichas
+    var nums = h('div', { id: 'numeros', style: 'position:absolute;inset:0;pointer-events:none;z-index:3' });
+    for (i = 1; i <= R.META; i++) {
+      var t = R.tipoDe(i), esp = t !== 'normal';
+      var el = h('div', { cls: 'cas' + (esp ? ' especial' : ''), style: 'left:' + POS[i][0] + 'px;top:' + POS[i][1] + 'px' });
+      if (esp) {
+        el.appendChild(h('div', { cls: 'tinte', style: 'background:' + TINTES[t] }));
+        var ic = h('div', { cls: 'ico' }); ic.innerHTML = ICONOS[t]; el.appendChild(ic);
+        if (t === 'meta') el.appendChild(h('div', { cls: 'rot', text: 'META' }));
+        if (t === 'inicio') el.appendChild(h('div', { cls: 'rot', text: 'SALIDA' }));
+      }
+      cas.appendChild(el); casEl[i] = el;
+      nums.appendChild(h('div', { cls: 'cas', style: 'left:' + POS[i][0] + 'px;top:' + POS[i][1] + 'px' }, h('span', { cls: 'num', text: String(i) })));
+    }
+    $('escenario').insertBefore(nums, $('izq'));
   }
+  function quitarPulsos() { Object.keys(casEl).forEach(function (k) { casEl[k].classList.remove('pulsa', 'turno-cas'); }); }
+  function pulsar(n) { var e = casEl[n]; if (!e) return; e.classList.remove('pulsa'); void e.offsetWidth; e.classList.add('pulsa'); }
 
-  var DX = [-30, -15, 0, 15, 30], DY = [8, -2, 10, -2, 8], ESCALA = 0.32;
+  /* ---------- fichas ---------- */
+  var ESCALA = 0.21;
+  var OFF = [[-25, 2], [0, -3], [25, 2], [-13, 22], [13, 22]];   // dónde apoya cada ficha dentro de la casilla
   function crearFicha(j) {
     var m = D.fichasMeta[j.slot], w = Math.round(m[0] * ESCALA), hh = Math.round(m[1] * ESCALA);
-    var el = h('div', { cls: 'ficha quieta', style: 'width:' + w + 'px;height:' + hh + 'px;display:none' },
+    var el = h('div', { cls: 'ficha quieta', style: 'width:' + w + 'px;height:' + hh + 'px' },
       h('img', { src: IMG['ficha_' + j.slot], alt: j.nombre, style: 'width:100%;height:100%;display:block', draggable: 'false' }));
     el._w = w; el._h = hh;
     $('fichas').appendChild(el);
@@ -424,30 +419,16 @@
     return el;
   }
   function elFicha(j) { return fichasEl[j.id] || crearFicha(j); }
-
-  // Coloca la ficha sobre el casillero n (si está en la región que se ve).
   function ponerFicha(j, n, modo) {
-    var el = elFicha(j), p = posN[n];
-    if (!p || p.esc !== app.escena) { el.style.display = 'none'; el._n = n; return false; }
-    var x = p.x + DX[j.slot] - el._w / 2, y = p.y + DY[j.slot] - el._h + 6;
-    el.classList.remove('quieta', 'salto', 'aparece');
+    var el = elFicha(j), p = POS[n], o = OFF[j.slot];
+    el.classList.remove('quieta', 'salto');
     if (modo === 'quieto') el.classList.add('quieta');
     else if (modo === 'salto') el.classList.add('salto');
-    else if (modo === 'aparece') el.classList.add('aparece');
-    if (el.style.display === 'none') el.classList.add('quieta');
-    el.style.display = 'block';
-    el.style.left = x + 'px'; el.style.top = y + 'px';
-    el.style.zIndex = Math.round(p.y) + j.slot;
+    var pie = p[1] + o[1] + 10;
+    el.style.left = (p[0] + o[0] - el._w / 2) + 'px';
+    el.style.top = (pie - el._h) + 'px';
+    el.style.zIndex = Math.round(pie) + j.slot;
     el._n = n;
-    return true;
-  }
-  function acomodarFichas() {
-    var s = app.visible;
-    if (!s) return;
-    s.jugadores.forEach(function (j) {
-      var el = fichasEl[j.id] || crearFicha(j);
-      ponerFicha(j, el._n || j.pos, 'quieto');
-    });
   }
   function sacarFichasSobrantes(sala) {
     Object.keys(fichasEl).forEach(function (id) {
@@ -464,150 +445,107 @@
   function pintarDados(dd) { pintarDado('d0', dd ? dd[0] : 0); pintarDado('d1', dd ? dd[1] : 0); }
   async function tirarDados(dd) {
     $('d0').classList.add('tira'); $('d1').classList.add('tira');
-    for (var i = 0; i < 6; i++) { pintarDado('d0', 1 + Math.floor(Math.random() * 6)); pintarDado('d1', 1 + Math.floor(Math.random() * 6)); await espera(100); }
+    for (var i = 0; i < 7; i++) { pintarDado('d0', 1 + Math.floor(Math.random() * 6)); pintarDado('d1', 1 + Math.floor(Math.random() * 6)); await espera(110); }
     $('d0').classList.remove('tira'); $('d1').classList.remove('tira');
     pintarDados(dd);
-    await espera(350);
+    await espera(700);
   }
 
-  /* ---------- avisos y tarjeta ---------- */
-  var avisoT = null;
-  function aviso(txt, ms) {
-    var a = $('aviso'); a.textContent = txt; a.classList.remove('fuera');
-    clearTimeout(avisoT); avisoT = setTimeout(function () { a.classList.add('fuera'); }, RAPIDO ? 100 : (ms || 2200));
-  }
-  var cerrarTarjeta = null;
-  async function mostrarTarjeta(n, tipo, efecto, ms) {
-    var s = sellos[n - 1], t = $('tarjeta');
-    t.style.backgroundImage = 'url(' + IMG.tarjeta + ')';
-    $('t-cinta').textContent = tipo === 'sello' ? 'Sello N.º ' + n : (NOMBRE_TIPO[tipo].toUpperCase() + ' · N.º ' + n);
-    var c = $('t-cuerpo'); c.innerHTML = '';
-    c.appendChild(h('h3', { text: s.nombre }));
-    c.appendChild(h('div', { cls: 'prov', text: s.prov }));
-    if (s.incluye) c.appendChild(h('div', { cls: 'incluye', text: s.incluye }));
-    c.appendChild(h('div', { cls: 'pendiente', text: 'La ficha histórica y la anécdota llegan pronto.' }));
-    if (efecto) c.appendChild(h('div', { cls: 'efecto', text: efecto }));
-    $('t-sello').src = IMG['icono_' + tipo];
-    t.classList.remove('fuera');
-    await new Promise(function (res) {
-      var t0 = setTimeout(res, RAPIDO ? 20 : ms);
-      cerrarTarjeta = function () { clearTimeout(t0); res(); };
-    });
-    cerrarTarjeta = null;
-    t.classList.add('fuera');
-    await espera(260);
-  }
-  $('tarjeta').onclick = function () { if (cerrarTarjeta) cerrarTarjeta(); };
-
-  function textoEfecto(ef, j) {
+  /* ---------- panel "última jugada" ---------- */
+  function nombreJug(sala, id) { var j = R.jugadorPorId(sala, id); return j ? j.nombre : 'Alguien'; }
+  function describir(sala, ult) {
+    if (!ult) return { tipo: 'inicio', titulo: '¡A jugar!', texto: 'Llegá primero a la casilla 63.' };
+    var j = R.jugadorPorId(sala, ult.id), nom = j ? j.nombre : 'Alguien';
+    if (ult.pasa) return { tipo: 'normal', titulo: 'Turno salteado', texto: nom + ' no estaba conectado.' };
+    var ef = ult.efecto, suma = ult.dados[0] + ult.dados[1], pre = nom + ' sacó ' + suma + '. ';
+    var reb = ult.pasos[0] && ult.pasos[0].tipo === 'rebote' ? '¡Se pasó de la meta y rebota! ' : '';
     switch (ef.tipo) {
-      case 'posta': return ef.a ? '¡Posta! Cambiás de caballo y salís disparado hasta el sello ' + ef.a + '. Volvés a tirar.' : '¡Última posta del camino! Cambiás de caballo y volvés a tirar.';
-      case 'cordillera': return '¡Paso de la cordillera! El frío te hace retroceder hasta el sello ' + ef.a + '.';
-      case 'mate': return 'Mate bajo el árbol histórico. Perdés el próximo turno, pero qué rico estaba.';
-      case 'mula': return '¡La mula no quiere avanzar! Volvés a tirar, pero con la mitad de los dados.';
-      case 'meta': return '¡Llegaste! Tenías todos los sellos en el pasaporte.';
-      default: return '¡Sello estampado!';
+      case 'oca': return ef.a === R.META ? { tipo: 'oca', titulo: '¡De oca a oca!', texto: pre + 'La última oca lo lleva directo a la meta.' } : { tipo: 'oca', titulo: '¡De oca a oca!', texto: pre + 'Salta a la oca de la casilla ' + ef.a + ' y tira de nuevo.' };
+      case 'puente': return { tipo: 'puente', titulo: '¡De puente a puente!', texto: pre + 'Cruza hasta la casilla ' + ef.a + ' y tira de nuevo.' };
+      case 'dados': return { tipo: 'dados', titulo: '¡De dado a dado!', texto: pre + 'Salta a la casilla ' + ef.a + ' y tira de nuevo.' };
+      case 'posada': return { tipo: 'posada', titulo: '¡La posada!', texto: pre + 'Se queda a descansar: pierde un turno.' };
+      case 'pozo': return { tipo: 'pozo', titulo: '¡Al pozo!', texto: pre + (ef.rescata ? 'Rescata a ' + nombreJug(sala, ef.rescata) + ' y ahora se queda él.' : 'Queda atrapado hasta que otro caiga.') };
+      case 'laberinto': return { tipo: 'laberinto', titulo: '¡El laberinto!', texto: pre + 'Se perdió: vuelve a la casilla ' + ef.a + '.' };
+      case 'carcel': return { tipo: 'carcel', titulo: '¡A la cárcel!', texto: pre + 'Pierde dos turnos.' };
+      case 'calavera': return { tipo: 'calavera', titulo: '¡La calavera!', texto: pre + 'Vuelve al principio.' };
+      case 'meta': return { tipo: 'meta', titulo: '¡Llegó!', texto: nom + ' llegó a la casilla 63.' };
+      default: return { tipo: 'normal', titulo: reb ? '¡Rebote!' : 'Casilla ' + ef.casillero, texto: pre + reb + (reb ? 'Queda en la ' + ef.casillero + '.' : 'Sin sorpresas.') };
     }
+  }
+  function pintarJugada(d) {
+    $('jugada-icono').innerHTML = ICONOS[d.tipo] || ICONOS.normal;
+    $('jugada-titulo').textContent = d.titulo;
+    $('jugada-texto').textContent = d.texto;
   }
 
   /* ---------- animación de una jugada ---------- */
   async function animarJugada(sala) {
     var ult = sala.ultima, j = R.jugadorPorId(sala, ult.id);
     if (!j) return aplicar(sala, false);
-    var antes = app.visible;
     sacarFichasSobrantes(sala);
-    sala.jugadores.forEach(function (x) { elFicha(x); });
-    quitarTurnoMarca();
+    sala.jugadores.forEach(function (x) { if (!fichasEl[x.id]) { var f = elFicha(x); ponerFicha(x, x.pos, 'quieto'); } });
+    quitarTurnoMarca(); quitarPulsos();
     if (ult.pasa) {
-      aviso(j.nombre + ' no está conectado: se pasa su turno.', 2600);
-      await espera(1400);
+      pintarJugada(describir(sala, ult));
+      await espera(1500);
       return aplicar(sala, false);
     }
-    // Primero llevamos la cámara a donde está la ficha (por si no estaba ahí).
-    if (app.escena !== escenaDe(ult.desde)) await irAEscena(escenaDe(ult.desde), true, 'Juega ' + j.nombre + ' en ' + escenas[escenaDe(ult.desde)].nombre);
-    if (ult.mitad) aviso('Dados a la mitad por la mula.', 1800);
+    pintarJugada({ tipo: 'dados', titulo: j.nombre + ' tira', texto: '' });
     await tirarDados(ult.dados);
-    var pos = ult.desde;
+    var pos = ult.desde, n, ruta, k;
     for (var i = 0; i < ult.pasos.length; i++) {
       var paso = ult.pasos[i];
       if (paso.tipo === 'camina' || paso.tipo === 'rebote') {
-        var ruta = [], n;
+        ruta = [];
         if (paso.tipo === 'rebote') { for (n = pos + 1; n <= R.META; n++) ruta.push(n); for (n = R.META - 1; n >= paso.a; n--) ruta.push(n); }
         else for (n = pos + 1; n <= paso.a; n++) ruta.push(n);
-        for (var k = 0; k < ruta.length; k++) {
-          var nn = ruta[k];
-          if (escenaDe(nn) !== app.escena) {
-            await irAEscena(escenaDe(nn), true, j.nombre + ' sigue camino hacia ' + escenas[escenaDe(nn)].nombre);
-            ponerFicha(j, nn, 'aparece'); await espera(350);
-          } else { ponerFicha(j, nn, 'paso'); await espera(190); }
-        }
-        if (paso.tipo === 'rebote') aviso('¡Te pasaste del Museo! Rebotás hacia atrás.', 2200);
+        for (k = 0; k < ruta.length; k++) { ponerFicha(j, ruta[k], 'paso'); await espera(380); }
         pos = paso.a;
-        var ef = ult.efecto, esUltimo = (i === ult.pasos.length - 1) || (ult.pasos[i + 1] && ult.pasos[i + 1].tipo !== 'camina');
-        if (esUltimo) {
-          var t = ef.tipo;
-          await mostrarTarjeta(ef.casillero, t, textoEfecto(ef, j), t === 'sello' ? 1500 : 3000);
-        }
+        pulsar(pos);
+        pintarJugada(describir(sala, ult));
+        var tipoLlegada = ult.efecto.tipo;
+        await espera(tipoLlegada === 'normal' ? 900 : 2200);
       } else {
-        // posta o retroceso: salto
-        var destino = paso.a;
-        if (escenaDe(destino) === app.escena) { ponerFicha(j, destino, 'salto'); await espera(800); }
-        else { await irAEscena(escenaDe(destino), true, paso.tipo === 'posta' ? j.nombre + ' galopa hacia ' + escenas[escenaDe(destino)].nombre : j.nombre + ' retrocede a ' + escenas[escenaDe(destino)].nombre); ponerFicha(j, destino, 'aparece'); await espera(400); }
-        pos = destino;
+        ponerFicha(j, paso.a, 'salto');
+        pos = paso.a;
+        await espera(1100);
+        pulsar(pos);
+        await espera(500);
       }
     }
-    (ult.salteados || []).forEach(function (id) {
-      var q = R.jugadorPorId(sala, id);
-      if (q) aviso(q.nombre + ' se quedó tomando mate: pierde este turno.', 2600);
-    });
-    return aplicar(sala, false);
+    (ult.salteados || []).forEach(function () { });
+    return aplicar(sala, false, true);
   }
 
   function quitarTurnoMarca() { Object.keys(fichasEl).forEach(function (id) { fichasEl[id].classList.remove('turno'); }); }
 
   /* ---------- aplicar un estado completo ---------- */
-  async function aplicar(sala, estatico) {
-    var antes = app.visible;
+  async function aplicar(sala, estatico, vieneDeAnimacion) {
     app.visible = sala;
     if (sala.fase === 'sala') {
       $('fin').hidden = true;
       mostrar('sala'); pintarSala(sala);
       return;
     }
-    if (document.getElementById('juego').hidden) { mostrar('juego'); }
+    construirTablero();
+    if ($('juego').hidden) mostrar('juego');
     sacarFichasSobrantes(sala);
+    quitarPulsos();
+    sala.jugadores.forEach(function (j) { var el = elFicha(j); ponerFicha(j, j.pos, 'quieto'); el.classList.toggle('pozo', !!j.pozo); });
     var activo = sala.jugadores[sala.turno];
-    var foco = sala.fase === 'fin' ? R.jugadorPorId(sala, sala.ganador) : activo;
-    var obj = foco ? escenaDe(foco.pos) : 'baires';
-    var primera = !app.escena;
-    if (app.escena !== obj) {
-      var txt = foco ? ('Ahora juega ' + foco.nombre + ' en ' + escenas[obj].nombre) : null;
-      if (sala.fase === 'fin') txt = foco.nombre + ' llegó a ' + escenas[obj].nombre;
-      await irAEscena(obj, !estatico && !primera, txt);
-    }
-    sala.jugadores.forEach(function (j) {
-      var el = elFicha(j), era = el.style.display === 'none';
-      var igual = el._n === j.pos;
-      ponerFicha(j, j.pos, igual && !era ? 'quieto' : (estatico ? 'quieto' : 'quieto'));
-    });
     Object.keys(fichasEl).forEach(function (id) { fichasEl[id].classList.toggle('turno', sala.fase === 'jugando' && activo && activo.id === id); });
-    if (!antes || estatico || !sala.ultima || sala.ultima.pasa) pintarDados(sala.ultima && sala.ultima.dados);
-    else pintarDados(sala.ultima.dados);
+    if (sala.fase === 'jugando' && activo && casEl[activo.pos]) casEl[activo.pos].classList.add('turno-cas');
+    pintarDados(sala.ultima && sala.ultima.dados);
+    if (!vieneDeAnimacion) pintarJugada(describir(sala, sala.ultima));
+    else if (sala.ultima && sala.ultima.extra) { /* se mantiene el cartel del efecto */ }
     pintarJugadores(sala);
-    pintarTira(sala);
     pintarTurno(sala);
     pintarFin(sala);
-    marcarActual(sala);
     controles();
-  }
-
-  function marcarActual(sala) {
-    Array.prototype.forEach.call($('casilleros').children, function (e) { e.classList.remove('actual'); });
-    if (sala.fase !== 'jugando') return;
-    var a = sala.jugadores[sala.turno];
-    if (!a) return;
-    var e = $('casilleros').querySelector('[data-n="' + a.pos + '"]');
-    if (e) e.classList.add('actual');
+    if (vieneDeAnimacion && sala.ultima && sala.ultima.salteados && sala.ultima.salteados.length) {
+      var nombres = sala.ultima.salteados.map(function (id) { return nombreJug(sala, id); }).join(', ');
+      pintarJugada({ tipo: 'posada', titulo: 'Turno salteado', texto: nombres + ' no juega esta vuelta.' });
+    }
   }
 
   function esMiTurno(sala) {
@@ -623,8 +561,8 @@
     t.hidden = false;
     var mio = esMiTurno(sala);
     t.classList.toggle('mio', mio);
-    $('turno-nombre').textContent = app.modo === 'local' ? 'Juega ' + a.nombre : (mio ? '¡Te toca!' : 'Juega ' + a.nombre);
-    $('turno-sub').textContent = mio ? (a.mitad ? 'Tirá: los dados valen la mitad' : 'Tocá “Tirar dados”') : (a.conectado ? 'Esperá tu turno' : 'Sin señal: se le pasa el turno enseguida');
+    $('turno-nombre').textContent = app.modo === 'local' ? a.nombre : (mio ? '¡Te toca!' : a.nombre);
+    $('turno-sub').textContent = mio ? (app.modo === 'local' ? 'Tira dados' : 'Tirá los dados') : (a.conectado ? 'está jugando' : 'sin señal');
   }
 
   function pintarJugadores(sala) {
@@ -633,23 +571,10 @@
     sala.jugadores.forEach(function (j) {
       var fila = h('div', { cls: 'jug' + (sala.fase === 'jugando' && activo && activo.id === j.id ? ' activo' : '') + (j.conectado ? '' : ' fuera'), style: '--c:' + COLORES[j.slot] },
         h('img', { src: IMG['ficha_' + j.slot], alt: '' }),
-        h('div', null, h('b', { text: j.nombre + (app.modo === 'red' && j.id === pid ? ' (vos)' : '') }), h('small', { text: 'Sello ' + j.pos + ' de ' + R.META })));
-      var est = !j.conectado ? 'Sin señal' : j.pausa > 0 ? 'Mate' : j.mitad ? 'Mula' : '';
+        h('div', null, h('b', { text: j.nombre + (app.modo === 'red' && j.id === pid ? ' (vos)' : '') }), h('small', { text: 'Casilla ' + j.pos })));
+      var est = !j.conectado ? 'Sin señal' : j.pozo ? 'Pozo' : j.pausa > 0 ? ('Pierde ' + j.pausa) : '';
       if (est) fila.appendChild(h('span', { cls: 'estado', text: est }));
-      else fila.appendChild(h('span'));
       cont.appendChild(fila);
-    });
-  }
-
-  function pintarTira(sala) {
-    var m = $('marcas'), d = $('dots');
-    if (!m.firstChild) {
-      for (var n = 1; n <= R.META; n++) { var i = h('i', { style: 'background:' + escenas[escenaDe(n)].color }); i.setAttribute('data-e', escenaDe(n)); m.appendChild(i); }
-    }
-    Array.prototype.forEach.call(m.children, function (i) { i.classList.toggle('ver', i.getAttribute('data-e') === app.escena); });
-    d.innerHTML = '';
-    sala.jugadores.forEach(function (j) {
-      d.appendChild(h('b', { style: '--c:' + COLORES[j.slot] + ';left:' + ((j.pos - 0.5) / R.META * 100) + '%' }));
     });
   }
 
@@ -658,11 +583,11 @@
     if (sala.fase !== 'fin') { f.hidden = true; return; }
     var g = R.jugadorPorId(sala, sala.ganador);
     var caja = $('fin-caja'); caja.innerHTML = '';
-    caja.appendChild(h('h2', { text: '¡' + g.nombre + ' llegó al Museo del Cabildo!' }));
+    caja.appendChild(h('h2', { text: '¡' + g.nombre + ' ganó!' }));
     caja.appendChild(h('div', { cls: 'gana' }, h('img', { src: IMG['ficha_' + g.slot], alt: '' })));
     var ol = h('ol');
     sala.jugadores.slice().sort(function (a, b) { return b.pos - a.pos; }).forEach(function (j) {
-      ol.appendChild(h('li', null, h('span', { text: j.nombre }), h('span', { text: 'sello ' + j.pos })));
+      ol.appendChild(h('li', null, h('span', { text: j.nombre }), h('span', { text: 'casilla ' + j.pos })));
     });
     caja.appendChild(ol);
     var bs = h('div', { cls: 'botones' });
@@ -680,9 +605,7 @@
     var a = s.jugadores[s.turno], libre = ocupado === 0 && !app.pendiente;
     var mio = esMiTurno(s);
     b.disabled = !(mio && libre);
-    if (mio) b.textContent = a.mitad ? 'Tirar (mitad)' : 'Tirar dados';
-    else b.textContent = 'Juega ' + (a ? a.nombre : '');
-    $('btn-menu').hidden = false;
+    b.textContent = mio ? 'Tirar dados' : 'Juega ' + (a ? a.nombre : '');
   }
   $('tirar').onclick = function () {
     if ($('tirar').disabled) return;
