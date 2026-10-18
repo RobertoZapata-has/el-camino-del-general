@@ -407,8 +407,8 @@
   function pulsar(n) { var e = casEl[n]; if (!e) return; e.classList.remove('pulsa'); void e.offsetWidth; e.classList.add('pulsa'); }
 
   /* ---------- fichas ---------- */
-  var ESCALA = 0.21;
-  var OFF = [[-25, 2], [0, -3], [25, 2], [-13, 22], [13, 22]];   // dónde apoya cada ficha dentro de la casilla
+  var ESCALA = 0.27;
+  var OFF = [[-27, 0], [0, -4], [27, 0], [-14, 24], [14, 24]];   // dónde apoya cada ficha dentro de la casilla
   function crearFicha(j) {
     var m = D.fichasMeta[j.slot], w = Math.round(m[0] * ESCALA), hh = Math.round(m[1] * ESCALA);
     var el = h('div', { cls: 'ficha quieta', style: 'width:' + w + 'px;height:' + hh + 'px' },
@@ -443,12 +443,41 @@
     for (var i = 0; i < 9; i++) d.appendChild(h('i', { cls: v && CARAS[v].indexOf(i) >= 0 ? 'on' : '' }));
   }
   function pintarDados(dd) { pintarDado('d0', dd ? dd[0] : 0); pintarDado('d1', dd ? dd[1] : 0); }
-  async function tirarDados(dd) {
-    $('d0').classList.add('tira'); $('d1').classList.add('tira');
-    for (var i = 0; i < 7; i++) { pintarDado('d0', 1 + Math.floor(Math.random() * 6)); pintarDado('d1', 1 + Math.floor(Math.random() * 6)); await espera(110); }
-    $('d0').classList.remove('tira'); $('d1').classList.remove('tira');
+  function dadoEl(v) {
+    var d = h('div', { cls: 'dado' });
+    for (var i = 0; i < 9; i++) d.appendChild(h('i', { cls: v && CARAS[v].indexOf(i) >= 0 ? 'on' : '' }));
+    return d;
+  }
+  var eventoCierra = null;
+  function abrirEvento(nodo) {
+    var e = $('evento'); e.innerHTML = ''; e.appendChild(nodo); e.classList.remove('fuera');
+  }
+  async function cerrarEvento() { $('evento').classList.add('fuera'); await espera(260); }
+  async function esperarEvento(ms) {
+    await new Promise(function (res) {
+      var t = setTimeout(res, RAPIDO ? 20 : ms);
+      eventoCierra = function () { clearTimeout(t); res(); };
+    });
+    eventoCierra = null;
+  }
+  $('evento').onclick = function () { if (eventoCierra) eventoCierra(); };
+
+  async function tirarDados(dd, nombre) {
+    var d0 = dadoEl(0), d1 = dadoEl(0), suma = h('div', { cls: 'ev-suma', text: '' });
+    abrirEvento(h('div', null, h('span', { cls: 'ev-quien', text: nombre + ' tira' }), h('div', { cls: 'dados' }, d0, d1), suma));
+    d0.classList.add('tira'); d1.classList.add('tira');
+    for (var i = 0; i < 8; i++) {
+      var a = 1 + Math.floor(Math.random() * 6), b = 1 + Math.floor(Math.random() * 6);
+      d0.replaceWith(d0 = dadoEl(a)); d1.replaceWith(d1 = dadoEl(b));
+      d0.classList.add('tira'); d1.classList.add('tira');
+      await espera(110);
+    }
+    var f0 = dadoEl(dd[0]), f1 = dadoEl(dd[1]);
+    d0.replaceWith(f0); d1.replaceWith(f1);
+    suma.textContent = dd[0] + ' + ' + dd[1] + ' = ' + (dd[0] + dd[1]);
     pintarDados(dd);
-    await espera(700);
+    await esperarEvento(1300);
+    await cerrarEvento();
   }
 
   /* ---------- panel "última jugada" ---------- */
@@ -491,7 +520,7 @@
       return aplicar(sala, false);
     }
     pintarJugada({ tipo: 'dados', titulo: j.nombre + ' tira', texto: '' });
-    await tirarDados(ult.dados);
+    await tirarDados(ult.dados, j.nombre);
     var pos = ult.desde, n, ruta, k;
     for (var i = 0; i < ult.pasos.length; i++) {
       var paso = ult.pasos[i];
@@ -502,9 +531,16 @@
         for (k = 0; k < ruta.length; k++) { ponerFicha(j, ruta[k], 'paso'); await espera(380); }
         pos = paso.a;
         pulsar(pos);
-        pintarJugada(describir(sala, ult));
-        var tipoLlegada = ult.efecto.tipo;
-        await espera(tipoLlegada === 'normal' ? 900 : 2200);
+        var desc = describir(sala, ult);
+        pintarJugada(desc);
+        var tipoLlegada = ult.efecto.tipo, esRebote = ult.pasos[0].tipo === 'rebote';
+        if (tipoLlegada === 'normal' && !esRebote) { await espera(900); }
+        else {
+          abrirEvento(h('div', null, h('div', { cls: 'ev-ico' }), h('h3', { text: desc.titulo }), h('p', { text: desc.texto }), h('div', { cls: 'ev-pie', text: 'Tocá para seguir' })));
+          $('evento').querySelector('.ev-ico').innerHTML = ICONOS[desc.tipo] || ICONOS.normal;
+          await esperarEvento(3600);
+          await cerrarEvento();
+        }
       } else {
         ponerFicha(j, paso.a, 'salto');
         pos = paso.a;
@@ -571,7 +607,7 @@
     sala.jugadores.forEach(function (j) {
       var fila = h('div', { cls: 'jug' + (sala.fase === 'jugando' && activo && activo.id === j.id ? ' activo' : '') + (j.conectado ? '' : ' fuera'), style: '--c:' + COLORES[j.slot] },
         h('img', { src: IMG['ficha_' + j.slot], alt: '' }),
-        h('div', null, h('b', { text: j.nombre + (app.modo === 'red' && j.id === pid ? ' (vos)' : '') }), h('small', { text: 'Casilla ' + j.pos })));
+        h('div', null, h('b', { text: j.nombre }), h('small', { text: 'Casilla ' + j.pos + (app.modo === 'red' && j.id === pid ? ' · vos' : '') })));
       var est = !j.conectado ? 'Sin señal' : j.pozo ? 'Pozo' : j.pausa > 0 ? ('Pierde ' + j.pausa) : '';
       if (est) fila.appendChild(h('span', { cls: 'estado', text: est }));
       cont.appendChild(fila);
