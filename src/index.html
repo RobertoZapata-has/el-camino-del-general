@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#14213A">
+<title>El camino del General</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>/*@CSS@*/</style>
+</head>
+<body>
+
+<section id="inicio" class="pantalla">
+  <div class="hero" id="hero">
+    <div class="hero-titulo">
+      <p class="sobre">Juego de la Oca sanmartiniana</p>
+      <h1>El camino del General</h1>
+    </div>
+  </div>
+  <div class="panel">
+    <div id="bloque-nombre">
+      <label for="nombre">Tu nombre</label>
+      <input id="nombre" type="text" maxlength="16" autocomplete="off" placeholder="Ej: Rober">
+    </div>
+    <div id="bloque-crear">
+      <button id="btn-crear" class="boton primario" style="width:100%">Crear sala</button>
+    </div>
+    <div id="bloque-unirse">
+      <label for="codigo">¿Te pasaron un código?</label>
+      <div class="fila">
+        <input id="codigo" type="text" maxlength="5" autocomplete="off" autocapitalize="characters" placeholder="CÓDIGO">
+        <button id="btn-unirse" class="boton secundario">Unirme</button>
+      </div>
+    </div>
+    <p class="msg" id="msg-inicio" role="status"></p>
+    <div id="bloque-reanudar" hidden>
+      <button id="btn-reanudar" class="boton secundario" style="width:100%">Retomar partida anterior</button>
+    </div>
+    <div id="bloque-local">
+      <div class="local-n"><span>Jugar en este celular:</span></div>
+      <div class="local-n" id="local-n" style="margin-top:6px">
+        <button class="boton secundario" data-n="2">2</button>
+        <button class="boton secundario" data-n="3">3</button>
+        <button class="boton secundario" data-n="4">4</button>
+        <button class="boton secundario" data-n="5">5</button>
+      </div>
+    </div>
+    <p class="nota">83 sellos del Pasaporte Nacional Sanmartiniano. Gana quien llega primero al Museo del Cabildo. De 2 a 5 jugadores.</p>
+  </div>
+</section>
+
+<section id="sala" class="pantalla" hidden>
+  <div class="sala-in">
+    <h2>Sala <span class="codigo" id="sala-codigo">-----</span></h2>
+    <div class="acciones" id="sala-invitar">
+      <button id="btn-wsp" class="boton primario">Invitar por WhatsApp</button>
+      <button id="btn-copiar" class="boton secundario">Copiar link</button>
+    </div>
+    <div class="slots" id="slots"></div>
+    <p class="nota" id="sala-nota"></p>
+    <div class="acciones">
+      <button id="btn-empezar" class="boton primario">Empezar</button>
+      <button id="btn-salir-sala" class="suave">Salir</button>
+    </div>
+  </div>
+</section>
+
+<section id="salida" class="pantalla" hidden>
+  <div>
+    <h2>¡Hasta la próxima!</h2>
+    <p>Próximamente en Play Store.</p>
+  </div>
+</section>
+
+<section id="juego" class="pantalla" hidden>
+  <div id="escenario">
+    <img class="fondo" id="fondo-a" alt="" draggable="false">
+    <img class="fondo" id="fondo-b" alt="" draggable="false" style="opacity:0">
+    <svg id="camino" viewBox="0 0 1280 720"></svg>
+    <div id="casilleros"></div>
+    <div id="fichas"></div>
+
+    <div class="chip" id="hud-escena"><small id="esc-prov"></small><b id="esc-nombre"></b></div>
+    <div id="hud-botones">
+      <button class="mini" id="btn-pantalla" aria-label="Pantalla completa">⛶</button>
+      <button class="mini" id="btn-menu" aria-label="Salir">Salir</button>
+    </div>
+    <div class="chip" id="hud-turno"><b id="turno-nombre"></b><span id="turno-sub"></span></div>
+    <div class="chip" id="jugadores"></div>
+
+    <div id="barra">
+      <div class="dados"><div class="dado" id="d0"></div><div class="dado" id="d1"></div></div>
+      <button id="tirar">Tirar dados</button>
+      <div id="tira" aria-label="Avance por los 83 sellos"><span class="rot">Los 83 sellos</span><div class="marcas" id="marcas"></div><div class="dots" id="dots"></div></div>
+    </div>
+
+    <div id="tarjeta" class="fuera"><div class="cinta" id="t-cinta"></div><div class="cuerpo" id="t-cuerpo"></div><img class="sello" id="t-sello" alt=""></div>
+    <div class="chip fuera" id="viaje"></div>
+    <div id="aviso" class="fuera"></div>
+    <div id="conexion" hidden>Reconectando…</div>
+
+    <div id="fin" hidden><div class="caja" id="fin-caja"></div></div>
+  </div>
+</section>
+
+<div id="rota"><div><span class="giro"></span><b>Girá el celular</b><span>El tablero se juega en horizontal.</span></div></div>
+
+<script>/*@PEERJS@*/</script>
+<script>window.DATOS = /*@DATOS@*/null; window.IMG = /*@IMG@*/null;</script>
+<script>/*@REGLAS@*/</script>
+<script>/*@SESION@*/</script>
+<script>/*@APP@*/</script>
+</body>
+</html>
